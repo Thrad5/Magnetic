@@ -5,6 +5,20 @@ Created on Wed Mar 1 15:20:32 2023
 """
 
 def inpTF(msg):
+    '''
+    
+
+    Parameters
+    ----------
+    msg : STRING
+        The True/false message you wish to input.
+
+    Returns
+    -------
+    bool
+        The result of the true false question asked.
+
+    '''
     while True:
         test = input(msg)
         if test == 'y':
@@ -15,6 +29,24 @@ def inpTF(msg):
             print('That is an invalid input please enter either y or n')
 
 def inpInt(msg,minm = None, maxm = None):
+    '''
+    
+
+    Parameters
+    ----------
+    msg : STRING
+        The message surrounding the integer you want to input.
+    minm : INT, optional
+        The minimum value of the integer(Exclusive). The default is None.
+    maxm : INT, optional
+        The maximum value of the integer(Exclusive). The default is None.
+
+    Returns
+    -------
+    test : INT
+        The integer result relavent to the message.
+
+    '''
     while True:
         if minm != '':
             if maxm != '':
@@ -58,6 +90,24 @@ def inpInt(msg,minm = None, maxm = None):
                     return test
 
 def inpFlt(msg,minm = None, maxm = None):
+    '''
+    
+
+    Parameters
+    ----------
+    msg : STRING
+        The message surrounding the float to input.
+    minm : FLOAT, optional
+        The minimum float that the input is compared with(Exclusive). The default is None.
+    maxm : FLOAT, optional
+        The maximum float that the input is compared with(Exclusive). The default is None.
+
+    Returns
+    -------
+    test : FLOAT
+        DESCRIPTION.
+
+    '''
     while True:
         if minm != None:
             if maxm != None:
@@ -101,6 +151,7 @@ def inpFlt(msg,minm = None, maxm = None):
                     return test
 
 def inpDate():
+    
     while True:
         try:
             yr = int(input('What year do you want the magnetic field for? (1900-2030):'))

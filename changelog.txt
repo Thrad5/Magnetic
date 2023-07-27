@@ -1,0 +1,6 @@
+1.01
+- removed unused functions in magnetic_code/coordinateChange.py
+- edited all files so that coordinateChange.deg2rad() was used consistently
+- removed print statements used solely for debugging
+- increased the number of comments to improve legibility
+- removed image_anal.py as it was unused

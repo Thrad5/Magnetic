@@ -53,8 +53,8 @@ def eulerChangeToCamera(X,Y,Z,roll,pitch,yaw, isdeg = True):
         The angle off of the horizon of the bird
     yaw : Float
         The heading of the bird relative to the world's north
-    isdeg : Bool, optional
-        Changes the angles' measurement units between degrees(True) and radians(False). The default value is True
+    isdeg : BOOL, optional
+        Whether the value output are in degrees(True) or radians(False). The default is True.
         
     Returns
     -------
@@ -65,126 +65,116 @@ def eulerChangeToCamera(X,Y,Z,roll,pitch,yaw, isdeg = True):
     Z : Float
         Out of lens component of the camera.
     '''
+    #Converts from degrees to radians
     if isdeg == True:
         roll = deg2rad(roll)
         pitch = deg2rad(pitch)
         yaw = deg2rad(yaw)
-    cll00 = np.cos(roll)*np.cos(yaw) - (np.sin(pitch)*np.sin(roll)*np.sin(yaw))
-    cll01 = - (np.cos(pitch)*np.sin(roll))
-    cll02 = np.cos(pitch)*np.sin(yaw) + np.cos(yaw) * np.sin(pitch)*np.sin(roll)
-    cll10 = np.cos(yaw)*np.sin(roll) + np.cos(roll)*np.sin(pitch)*np.sin(yaw)
-    cll11 = np.cos(roll)*np.cos(pitch)
-    cll12 = (np.sin(roll)*np.sin(yaw)) - (np.cos(roll) * np.cos(yaw) * np.sin(pitch))
-    cll20 = - (np.cos(pitch) * np.sin(yaw))
-    cll21 = np.sin(pitch)
-    cll22 = np.cos(pitch) * np.cos(yaw)
-    
-    mat = np.array([[cll00,cll01,cll02],[cll10,cll11,cll12],[cll20,cll21,cll22]])
-    #print(mat)
+
+    #Creates the Euler Angle matrix ZYX
+    Xr = [[1,0,0],[0,np.cos(pitch),-np.sin(pitch)],[0,np.sin(pitch),np.cos(pitch)]]
+    Yr = [[np.cos(yaw),0,np.sin(yaw)],[0,1,0],[-np.sin(yaw),0,np.cos(yaw)]]
+    Zr = [[np.cos(roll),-np.sin(roll),0],[np.sin(roll),np.cos(roll),0],[0,0,1]]
+    mat = np.matmul(np.matmul(Zr,Yr),Xr)
     vec = np.array([X,Y,Z])
-    #print('Original Vector:',vec)
+    #Converts the input magnetic vector into the coordinates of the bird's eye
     changed = mat @ vec
-    #print('Changed Vector:',changed)
+    #Calculates the heading of the bird by calculating the inverted matrix multiplied by the vector going out of the pupil [0,0,1]
     inv = np.linalg.inv(mat)
     birdfacing = inv @ [0,0,1]
-    #print(birdfacing)
     phi = np.arctan2(birdfacing[0],birdfacing[1])
-    heading = 360-((phi+360)%360)
+    #Converts the heading int degrees if they are being used
+    if isdeg == True:
+        phi = phi *180/np.pi
+        heading = phi%360
+    else:
+        heading = phi%(2*np.pi)
     return changed[0], changed[1], changed[2],heading
 
-def rebound(theta,phi):
+
+def toSpherical (X,Y,Z,isdeg = True):
     '''
-    Rebounds the polar oordinates so they are in the ranges of 0-180 and 0-360
+    
 
     Parameters
     ----------
-    theta : float
-        Angle from the positive z axis.
-    phi : float
-        Angle around the positive z axis.
+    X : REAL
+        DESCRIPTION.
+    Y : REAL
+        DESCRIPTION.
+    Z : REAL
+        DESCRIPTION.
+    isdeg : BOOL, optional
+        Whether the value output are in degrees(True) or radians(False). The default is True.
 
     Returns
     -------
-    theta : float
-        Angle from the positive z axis.
-    phi : float
-        Angle around the positive z axis.
-
-    '''
-    if 0<theta or theta>180:
-        theta = abs(theta)
-        phi = phi +180
-        
-    phi = phi%360
-    return theta,phi
-
-def toSpherical (X,Y,Z):
-    r = np.sqrt(X**2+Y**2+Z**2)
-    theta = np.arccos(Z/r)
-    phi = np.sign(Y)*np.arccos(X/(np.sqrt(X**2+Y**2)))
-    theta = theta*180/np.pi
-    phi = phi *180/np.pi
-    return r, theta, phi
-
-def heading(dec, theta, heading, aoh):
-    '''
-    Changes the declination / phi term in spherical polars to the phi term of 
-
-    Parameters
-    ----------
-    dec : FLOAT or np.array
-        The Declination off of geographic north that the magnetic field is.
-    theta : Float or np.array
-        The angle off of up perpendicular to earth of the magnetic field.
-    heading : FLOAT
-        The heading of the bird relative to geographic north.
-    aoh : FLOAT
-        The angle off of the horizon of the bird with negative being down
-
-    Returns
-    -------
-    dec : TYPE
+    r : TYPE
+        DESCRIPTION.
+    theta : TYPE
+        DESCRIPTION.
+    phi : TYPE
         DESCRIPTION.
 
     '''
-    dec = heading + dec
-    theta = theta +aoh
-    theta,dec = rebound(theta,dec)
-    return dec, theta
+    r = np.sqrt(X**2+Y**2+Z**2)
+    theta = np.arccos(Z/r)
+    phi = np.sign(Y)*np.arccos(X/(np.sqrt(X**2+Y**2)))
+    if isdeg == True:
+        theta = deg2rad(theta)
+        phi = deg2rad(phi)
+    return r, theta, phi
 
-def createEye(num_pnts):
+
+
+def createEye(num_pnts, isdeg = True):
+    '''
     
-    #Assume that the eye is covered in the back half by retina
-    #This will use the fibonacci spiral method
+
+    Parameters
+    ----------
+    num_pnts : TYPE
+        DESCRIPTION.
+    isdeg : BOOL, optional
+        Whether the value output are in degrees(True) or radians(False). The default is True.
+
+    Returns
+    -------
+    xc : TYPE
+        DESCRIPTION.
+    yc : TYPE
+        DESCRIPTION.
+    zc : TYPE
+        DESCRIPTION.
+
+    '''
+    #Assume that the eye is covered in retina exept for areas with an angle less than 50º from the vector to the pupil
+    #This will use the fibonacci spiral method for generating the points on the retina
     n=round(num_pnts*(1/0.8213946))
     i = np.arange(0,n,1)
     gld = (1 + 5**0.5)/2
     x = (i/gld)%1
     y = i/n
-    rad=1#5mm radius
+    rad=1#5mm radius normalised for units of bird's retina
     phi = 2*np.pi*y
     theta = np.arccos(1 - 2*x)
     
-    # print('Eye debug:')
-    # print('Theta min, theta max')
-    # print(theta.min(),theta.max())
-    # print('Phi min, Phi max')
-    # print(phi.min(),phi.max())
     
     
-    
+    #This calculates the cartesian coordinates of the eye.
     xc1,yc1,zc1 = rad*np.cos(phi)*np.sin(theta),rad*np.sin(phi)*np.sin(theta),rad*np.cos(theta[i])
     selec = cartAngleBetween(xc1,yc1,zc1,1,0,0)
 
 
     xc,yc,zc = [],[],[]
     for i in range(0,len(theta)):
-        
-        # print(selec[i])
+        #Using the angle between the point created and the pupil we can see if it is part of the retina 
         if (selec[i]>(50*np.pi/180)):
             xc.append(rad*np.cos(phi[i])*np.sin(theta[i]))
             yc.append(rad*np.sin(phi[i])*np.sin(theta[i]))
             zc.append(rad*np.cos(theta[i]))
+    #The function that creates the eye has the pupil as in the positive x, verticaly upwards as positive z and, a right hand system of coordinates.
+    #This needs to be changed to be the pupil as positive z, vertically upwards as positive y, and a right hand system of coordinates.
     tem = xc
     temp = yc
     temp2 = zc
@@ -192,36 +182,55 @@ def createEye(num_pnts):
     yc = np.array(temp2)
     zc = np.array(tem)
     lz = zc - rad
-    lr,ltheta,lphi = toSpherical(xc,yc,lz)
-    cr,ctheta,cphi = toSpherical(xc,yc,zc)
-    # print('xc min, xc max')
-    # print(xc.min(),xc.max())
-    # print('yc min, yc max')
-    # print(yc.min(),yc.max())
-    # print('zc min, zc max')
-    # print(zc.min(),zc.max())
-    # print('Ltheta min, Ltheta max')
-    # print(ltheta.min(),ltheta.max())
-    # print('Lphi min, Lphi max')
-    # print(lphi.min(),lphi.max())
-    # print('Lr min, Lr max')
-    # print(lr.min(),lr.max())
-    lphi = lphi * 180/np.pi
-    ltheta = ltheta * 180/np.pi
-    cphi = cphi * 180/np.pi
-    ctheta = ctheta * 180/np.pi
-    return xc, yc, zc, cphi, ctheta,lr, lphi, ltheta
+   
+    return xc, yc, zc
 
-def recalcXYZ(r, theta, phi, isdeg=True):
-    if isdeg == True:
-        theta = deg2rad(theta)
-        phi = deg2rad(phi)
-    return r*np.cos(phi)*np.sin(theta),r*np.sin(phi)*np.sin(theta),r*np.cos(theta)
+
 
 def deg2rad(angle):
+    '''
+    
+
+    Parameters
+    ----------
+    angle : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    '''
     return angle*np.pi/180
 
-def cartAngleBetween(x1,y1,z1,x2,y2,z2):
+def cartAngleBetween(x1,y1,z1,x2,y2,z2,isdeg = False):
+    '''
+    
+
+    Parameters
+    ----------
+    x1 : TYPE
+        DESCRIPTION.
+    y1 : TYPE
+        DESCRIPTION.
+    z1 : TYPE
+        DESCRIPTION.
+    x2 : TYPE
+        DESCRIPTION.
+    y2 : TYPE
+        DESCRIPTION.
+    z2 : TYPE
+        DESCRIPTION.
+    isdeg : BOOL, optional
+        Whether the value output are in degrees(True) or radians(False). The default is False.
+
+    Returns
+    -------
+    angle : TYPE
+        DESCRIPTION.
+
+    '''
     xx = x1*x2
     yy = y1*y2
     zz = z1*z2
@@ -229,66 +238,13 @@ def cartAngleBetween(x1,y1,z1,x2,y2,z2):
     mag2 = np.sqrt(x2**2 + y2**2 + z2**2)
     dot = xx + yy + zz
     angle = np.arccos(dot/(mag1*mag2))
+    if isdeg == True:
+        angle = deg2rad(angle)
     return angle
 
-def angleBetween(theta1, phi1, theta2, phi2, isdeg = True):
-    '''
-    Calculates the angle between two vectors
-    One of the two vectors can be an array of vectors as long as they are all in the same units.
-    
-    Parameters
-    ----------
-    theta1 : Float
-        Angle between z-axis and first vector, degrees default.
-    phi1 : Float
-        Angle around the z-axis of the first vector, degrees default.
-    theta2 : Float
-        Angle between z-axis and second vector, degrees default.
-    phi2 : Float
-        Angle around the z-axis of the second vector, degrees default.
-    isdeg : Bool, optional
-        Changes between degrees and radians for both input and output, degrees default.
-        
-    Returns
-    -------
-    angle : Float
-        The angle between the two vectors as either degrees or radians.
 
-    '''
-    if isdeg == True:
-        theta1 = theta1 *np.pi/180
-        theta2 = theta2 *np.pi/180
-        phi1 = phi1 * np.pi/180
-        phi2 = phi2 * np.pi/180
-    
-    diff_phi = phi1 - phi2
-    lh = np.sin(theta1)*np.sin(theta2)*np.cos(diff_phi)
-    rh = np.cos(theta1)
-    inarccos = lh + rh
-    
-    # print('In arccos min and max')
-    # print(inarccos.min(),inarccos.max())
-    try:
-        len(inarccos)
-        for i in range(len(inarccos)):
-            if inarccos[i]< -1:
-                inarccos[i] = -1
-            elif inarccos[i] > 1:
-                inarccos[i] = 1
-    except TypeError:
-        if inarccos < -1:
-            inarccos = -1
-        elif inarccos >1:
-            inarccos = 1
 
-    
-    # print(inarccos.min(),inarccos.max())
-    angle = np.arccos(inarccos)
-    if isdeg == True:
-        angle = angle *180/np.pi
-    return angle
-
-def legendre(angle,w2 = 1, w4 = 0, w6 = 0, w8 = 0, isdeg = True):
+def legendre(angle, isdeg = True):
     '''
     Calculates the legendre polynomials for an angle
 
@@ -306,7 +262,7 @@ def legendre(angle,w2 = 1, w4 = 0, w6 = 0, w8 = 0, isdeg = True):
 
     '''
     if isdeg == True:
-        angle = angle*np.pi/180
+        angle = deg2rad(angle)
         
     with open(r'./magnetic_code/weightings.txt','r') as f:
         weightings = []
@@ -319,17 +275,31 @@ def legendre(angle,w2 = 1, w4 = 0, w6 = 0, w8 = 0, isdeg = True):
     
     return sum
 
-def proj (x,theta,phi,isdeg = True):
-    if isdeg == True:
-        theta = deg2rad(theta)
-        phi = deg2rad(phi)
-    
-    r = 1/(x/(np.cos(phi)*np.sin(theta)))
-    y = x *np.sin(phi) / np.cos(phi)
-    z = r * np.cos(theta)
-    return y, z
 
 def findISpace (ex,ey,ez,r):
+    '''
+    
+
+    Parameters
+    ----------
+    ex : TYPE
+        DESCRIPTION.
+    ey : TYPE
+        DESCRIPTION.
+    ez : TYPE
+        DESCRIPTION.
+    r : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    iy : TYPE
+        DESCRIPTION.
+    ix : TYPE
+        DESCRIPTION.
+
+    '''
+    
     pupil = [0,0,r]
     positions = []
     for i in range(len(ex)):
@@ -339,5 +309,4 @@ def findISpace (ex,ey,ez,r):
     t = (-r - pupil[2])/direction_vector[:,2]
     iy = pupil[1]+ t*direction_vector[:,1]
     ix = pupil[0] + t * direction_vector[:,0]
-    # print(iy,ix)
     return iy, ix

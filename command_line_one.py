@@ -10,7 +10,49 @@ import numpy as np
 import importlib
 
 
-def cellVec (lat,long,alt,date,pitchi,rolli,yaw,points,file = None):
+def cellVec (lat,long,alt,date,rolli,yaw,pitchi,points,file = None):
+    '''
+    
+
+    Parameters
+    ----------
+    lat : FLOAT
+        Latitude of the location using the WGS-84 elipsoid in degrees.
+    lon : FLOAT
+        Longitude of the location using the WGS-84 elipsoid in degrees.
+    alt : FLOAT
+        Altitude of the point off the ground in km.
+    date : FLOAT
+        Date of intrest between 1900-2030 where the day of the year is the fraction portion.
+    rolli : FLOAT
+        Roll of the bird relative to the horison.
+    yaw : FLOAT
+        Yawing of bird from 'true' geographic north. Anticlockwise
+    pitch : FLOAT
+        Angle the bird makes with the vertical (90+angle off horizon).
+    points : INT
+        Number of retinal cells you wish to model.
+    file : STRING, optional
+        DESCRIPTION. The default is None.
+
+    Returns
+    -------
+    xc : np.array
+        The x coordinate of the retinal cell.
+    yc : np.array
+        The y coordinate of the retinal cell.
+    zc : np.array
+        The z coordinate of the retinal cell.
+    iy : np.array
+        The y coordinate of the image plane.
+    ix : np.array
+        The x coordinate of the image plane.
+    legendre : np.array
+        Normalised result of the spherical harmonic (or of the function in file).
+    heading : FLOAT
+        Heading of the bird off of geographic north(degrees).
+
+    '''
     ## Conversion from pitch being off of horizon to being from z axis
     pitch = pitchi + 90
     pitch = pitch % 180
@@ -23,10 +65,8 @@ def cellVec (lat,long,alt,date,pitchi,rolli,yaw,points,file = None):
     mX, mY, mZ = coordinateChange.zDownToZUp(mX, mY, mZ)
     ## Goes from World Coordinates to Camera Coordinates
     mX, mY, mZ,heading = coordinateChange.eulerChangeToCamera(mX, mY, mZ, roll, pitch, yaw)
-    ## Finds the spherical coordinates of the Magnetic field
-    r, thetam, phim = coordinateChange.toSpherical(mX,mY,mZ)
     ## Creates an eye with the given number of cells 
-    xc, yc, zc, cphi, ctheta,lr, lphi, ltheta = coordinateChange.createEye(points)
+    xc, yc, zc = coordinateChange.createEye(points)
     ## Finds the location on the pixel plane that the eye cell goes to projected from pupil
     iy,ix = coordinateChange.findISpace(xc, yc, zc, 1)
     ## Calculates the angle between the vector to the cell and the magnetic field
@@ -93,7 +133,8 @@ def mstr():
     *     the angle between the magnetic field and the     *
     *     vector from the centre of the eye and the cell   *
     *     location. By default this is the spherical       *
-    *     harmonic (Yml) with m = 0 and l being even but   *
+    *     harmonic (Yml) with m = 0 and l being even       *
+    *     using weightings based on Rodgers & Hore but     *
     *     this can be changed as long as the function is   *
     *     named 'modulation' within a python file you      *
     *     state and only takes in the angles between the   *
